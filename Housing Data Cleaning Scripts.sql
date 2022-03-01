@@ -9,13 +9,17 @@ Select *
 From PortfolioProject.dbo.NashvilleHousing
 
 
--- Standardize Date Format
+-- Standardize Date Format 
+-- Originally SaleDate data was in datetime format
 
-Select SaleDateConverted, CONVERT(Date,SaleDate)
+
+Select SaleDate, CONVERT(Date,SaleDate)
 From PortfolioProject.dbo.NashvilleHousing
 
 Update NashvilleHousing
 SET SaleDate = CONVERT(Date,SaleDate)
+
+--The above method did not work when initially tried so I did the below method to get the same desired results
 
 ALTER TABLE NashvilleHousing
 Add SaleDateConverted Date;
@@ -25,6 +29,7 @@ SET SaleDateConverted = CONVERT(Date,SaleDate)
 
 
 -- Populate Property Address data
+-- There were some Null property addresses that could be populated with the correct address by utilizing a self join on ParcelID to add the known address
 
 Select *
 From PortfolioProject.dbo.NashvilleHousing
@@ -48,14 +53,18 @@ JOIN PortfolioProject.dbo.NashvilleHousing b
 Where a.PropertyAddress is null
 
 
---Breaking out Address into Individual Columns (Address, City, State)
+-- Breaking out Address into Individual Columns (Address, City, State)
+-- Originally address, city, and state were together in one column for both property address and owner address, this breaks them out into their own individual columns
+
+
+-- For the property address column I used substrings to perform this
 
 Select PropertyAddress
 From PortfolioProject.dbo.NashvilleHousing
 --Where PropertyAddress is null
 --Order By ParcelID
 
-SELECT
+Select
 SUBSTRING(PropertyAddress, 1, CHARINDEX(',', PropertyAddress) -1 ) AS Address
 , SUBSTRING(PropertyAddress, CHARINDEX(',', PropertyAddress) +1 , LEN(PropertyAddress)) AS City
 
@@ -73,18 +82,19 @@ Add PropertySplitCity Nvarchar(255);
 Update NashvilleHousing
 SET PropertySplitCity = SUBSTRING(PropertyAddress, CHARINDEX(',', PropertyAddress) +1 , LEN(PropertyAddress))
 
-SELECT *
-FROM PortfolioProject.dbo.NashvilleHousing
+Select *
+From PortfolioProject.dbo.NashvilleHousing
 
+-- For the owner address column I used parsename to practice a different method that gets the same result
 
-SELECT OwnerAddress
-FROM PortfolioProject.dbo.NashvilleHousing
+Select OwnerAddress
+From PortfolioProject.dbo.NashvilleHousing
 
-SELECT
+Select
 PARSENAME(REPLACE(OwnerAddress, ',', '.') , 3)
 ,PARSENAME(REPLACE(OwnerAddress, ',', '.') , 2)
 ,PARSENAME(REPLACE(OwnerAddress, ',', '.') , 1)
-FROM PortfolioProject.dbo.NashvilleHousing
+From PortfolioProject.dbo.NashvilleHousing
 
 
 ALTER TABLE NashvilleHousing
@@ -107,18 +117,19 @@ SET OwnerSplitState = PARSENAME(REPLACE(OwnerAddress, ',', '.') , 1)
 
 
 -- Change Y and N to Yes and No in "Sold as Vacant" field
+-- Entries for the sold as vacant column were inconsistently input so this fixes that to have a consistent yes or no
 
-SELECT Distinct(SoldasVacant), Count(SoldAsVacant)
-FROM PortfolioProject.dbo.NashvilleHousing
-GROUP BY SoldAsVacant
-ORDER BY 2
+Select Distinct(SoldasVacant), Count(SoldAsVacant)
+From PortfolioProject.dbo.NashvilleHousing
+Group By SoldAsVacant
+Order By 2
 
-SELECT SoldAsVacant
+Select SoldAsVacant
 , CASE When SoldAsVacant = 'Y' THEN 'Yes'
 	   When SoldAsVacant = 'N' THEN 'No'
 	   ELSE SoldAsVacant
 	   END
-FROM PortfolioProject.dbo.NashvilleHousing
+From PortfolioProject.dbo.NashvilleHousing
 
 
 Update NashvilleHousing
@@ -128,10 +139,10 @@ SET SoldAsVacant = CASE When SoldAsVacant = 'Y' THEN 'Yes'
 	   END
 
 
--- Remove Duplicates
+-- Removing Duplicates
 
 WITH RowNumCTE AS(
-SELECT *, 
+Select *, 
 	ROW_NUMBER() OVER (
 	PARTITION BY ParcelID,
 				 PropertyAddress,
@@ -142,7 +153,7 @@ SELECT *,
 					UniqueID
 					) row_num
 
-FROM PortfolioProject.dbo.NashvilleHousing
+From PortfolioProject.dbo.NashvilleHousing
 --ORDER BY ParcelID
 )
 DELETE
@@ -152,6 +163,7 @@ Where row_num > 1
 
 
 -- Delete Unused Columns
+-- Getting rid of columns that are no longer useful now that we have split the data into new columns
 
 Select *
 From PortfolioProject.dbo.NashvilleHousing
